@@ -1,3 +1,11 @@
+/build
+/bin
+/builddir
+
+.clang_complete
+
+**.swp
+
 # Prerequisites
 *.d
 
