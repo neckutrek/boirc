@@ -53,11 +53,16 @@ private:
   void do_connect(const tcp::resolver::results_type& endpoints)
   {
     boost::asio::async_connect(socket_, endpoints,
-        [this](boost::system::error_code ec, tcp::endpoint)
+        [this](boost::system::error_code ec, tcp::endpoint endpoint)
         {
           if (!ec)
           {
+            std::cout << "Connected to: " << endpoint << std::endl;
             do_read_header();
+          }
+          else
+          {
+            std::cerr << "Failed to connect to endpoint." << std::endl;
           }
         });
   }
@@ -75,6 +80,7 @@ private:
           else
           {
             socket_.close();
+            std::cerr << "Closing socket (1)" << std::endl;
           }
         });
   }
@@ -83,17 +89,21 @@ private:
   {
     boost::asio::async_read(socket_,
         boost::asio::buffer(read_msg_.body(), read_msg_.body_length()),
-        [this](boost::system::error_code ec, std::size_t /*length*/)
+        [this](boost::system::error_code ec, std::size_t length)
         {
           if (!ec)
           {
-            std::cout.write(read_msg_.body(), read_msg_.body_length());
-            std::cout << "\n";
+            if (length > 0)
+            {
+              std::cout.write(read_msg_.body(), read_msg_.body_length());
+              std::cout << std::endl;
+            }
             do_read_header();
           }
           else
           {
             socket_.close();
+            std::cerr << "Closing socket (2)" << std::endl;
           }
         });
   }
@@ -116,6 +126,7 @@ private:
           else
           {
             socket_.close();
+            std::cerr << "Closing socket (3)" << std::endl;
           }
         });
   }
