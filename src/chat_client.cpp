@@ -9,7 +9,7 @@
 //
 
 #include <cstdlib>
-#include <deque>
+#include <queue>
 #include <iostream>
 #include <thread>
 #include <utility>
@@ -17,8 +17,6 @@
 #include "chat_message.hpp"
 
 using boost::asio::ip::tcp;
-
-typedef std::deque<chat_message> chat_message_queue;
 
 typedef boost::asio::buffers_iterator<boost::asio::const_buffers_1> iterator;
 
@@ -33,13 +31,13 @@ public:
     do_connect(endpoints);
   }
 
-  void write(const chat_message& msg)
+  void write(const std::string& msg)
   {
     boost::asio::post(io_context_,
         [this, msg]()
         {
           bool write_in_progress = !write_msgs_.empty();
-          write_msgs_.push_back(msg);
+          write_msgs_.push(msg);
           if (!write_in_progress)
           {
             do_write();
@@ -174,14 +172,17 @@ private:
 
   void do_write()
   {
+    write_buff_.consume(write_buff_.size()); // clear the buffer
+    std::ostream os{&write_buff_};
+    os << write_msgs_.front();
+
     boost::asio::async_write(socket_,
-        boost::asio::buffer(write_msgs_.front().data(),
-          write_msgs_.front().length()),
-        [this](boost::system::error_code ec, std::size_t /*length*/)
+        write_buff_,
+        [this](boost::system::error_code ec, std::size_t length)
         {
           if (!ec)
           {
-            write_msgs_.pop_front();
+            write_msgs_.pop();
             if (!write_msgs_.empty())
             {
               do_write();
@@ -199,9 +200,11 @@ private:
   boost::asio::io_context& io_context_;
   tcp::socket socket_;
   chat_message read_msg_;
-  chat_message_queue write_msgs_;
+  std::queue<std::string> write_msgs_;
+  std::mutex m_;
 
   boost::asio::streambuf b_;
+  boost::asio::streambuf write_buff_;
 
 };
 
@@ -223,14 +226,11 @@ int main(int argc, char* argv[])
 
     std::thread t([&io_context](){ io_context.run(); });
 
-    char line[chat_message::max_body_length + 1];
-    while (std::cin.getline(line, chat_message::max_body_length + 1))
+    std::string line;
+    while (std::getline(std::cin, line))
     {
-      chat_message msg;
-      msg.body_length(std::strlen(line));
-      std::memcpy(msg.body(), line, msg.body_length());
-      msg.encode_header();
-      c.write(msg);
+      std::cout << "Input: " << line << std::endl;
+      c.write(line);
     }
 
     c.close();
