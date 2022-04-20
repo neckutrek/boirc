@@ -12,12 +12,15 @@
 #include <deque>
 #include <iostream>
 #include <thread>
+#include <utility>
 #include <boost/asio.hpp>
 #include "chat_message.hpp"
 
 using boost::asio::ip::tcp;
 
 typedef std::deque<chat_message> chat_message_queue;
+
+typedef boost::asio::buffers_iterator<boost::asio::const_buffers_1> iterator;
 
 class chat_client
 {
@@ -58,13 +61,74 @@ private:
           if (!ec)
           {
             std::cout << "Connected to: " << endpoint << std::endl;
-            do_read_header();
+            do_read_irc();
           }
           else
           {
             std::cerr << "Failed to connect to endpoint." << std::endl;
           }
         });
+  }
+
+  static std::pair<iterator, bool> is_irc_msg(iterator begin, iterator end)
+  {
+    {
+      iterator it1 = begin;
+      int n=0;
+      while (it1 != end)
+      {
+        it1++;
+        n++;
+      }
+      if (n < 2)
+      {
+        return std::make_pair(begin, false);
+      }
+    }
+
+    iterator it = begin;
+    bool result = false;
+    while (!result && it+1 != end)
+    {
+      if (*it == (char)(0x0d) && *(it+1) == (char)(0x0a))
+      {
+        result = true;
+      }
+      else
+      {
+        it++;
+      }
+    }
+
+    if (result)
+    {
+      return std::make_pair(it, true);
+    }
+    return std::make_pair(begin, false);
+  };
+
+  void do_read_irc()
+  {
+    boost::asio::async_read_until(
+      socket_,
+      b_,
+      is_irc_msg,
+      [this](boost::system::error_code ec, std::size_t length)
+      {
+        if (!ec)
+        {
+          std::istream is(&b_);
+          std::string line;
+          std::getline(is, line);
+          std::cout << line << std::endl;
+          do_read_irc();
+        }
+        else
+        {
+          socket_.close();
+          std::cerr << "Closing socket (0)" << std::endl;
+        }
+      });
   }
 
   void do_read_header()
@@ -136,6 +200,9 @@ private:
   tcp::socket socket_;
   chat_message read_msg_;
   chat_message_queue write_msgs_;
+
+  boost::asio::streambuf b_;
+
 };
 
 int main(int argc, char* argv[])
