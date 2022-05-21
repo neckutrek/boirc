@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
     // Get an endpoint for the Boost website. This will be passed to the SOCKS
     // 4 server. Explicitly specify IPv4 since SOCKS 4 does not support IPv6.
     auto http_endpoint =
-      *resolver.resolve(tcp::v4(), "www.boost.org", "http").begin();
+      *resolver.resolve(tcp::v4(), "chat.freenode.net", "irc").begin();
 
     // Send the request to the SOCKS 4 server.
     socks4::request socks_request(

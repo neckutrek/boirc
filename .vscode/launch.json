@@ -5,11 +5,11 @@
    "version": "0.2.0",
    "configurations": [
       {
-         "name": "main",
+         "name": "chat_client",
          "type": "cppdbg",
          "request": "launch",
-         "program": "${workspaceFolder}/bin/main",
-         "args": [],
+         "program": "${workspaceFolder}/bin/chat_client",
+         "args": ["chat.freenode.net", "6667"],
          "stopAtEntry": false,
          "cwd": "${workspaceFolder}/bin",
          "environment": [],
